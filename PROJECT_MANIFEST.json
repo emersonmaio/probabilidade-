@@ -1,0 +1,13 @@
+{
+  "project": "probabilidade-lotomania",
+  "created": "2026-09-24",
+  "frozen_versions": [
+    "V7",
+    "V8",
+    "V9",
+    "V10"
+  ],
+  "data_included": true,
+  "data_last_contest": 2978,
+  "rule": "Blind test first; incorporate result only afterward."
+}

@@ -1,0 +1,1 @@
+"""Lotomania statistical research package."""

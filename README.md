@@ -44,5 +44,4 @@ Para cada concurso-alvo `t`, somente concursos anteriores a `t` podem gerar atri
 - `models/` configurações
 - `backtests/` resultados gerados
 - `tests/` testes
-- `.github/workflows/` automação# probabilidade-
-teste matemático 
+- `.github/workflows/` automação
