@@ -1,8 +1,7 @@
 from __future__ import annotations
 from dataclasses import asdict
-from itertools import combinations
 import numpy as np
-from .backtest import Metrics, evaluate_weight_model
+from .backtest import evaluate_weight_model
 from .baseline import summarize_hits, simulate_random_games, theoretical_metrics
 
 def bootstrap_ci(values, statistic=np.mean, samples=5000, seed=20260930, alpha=0.05):
