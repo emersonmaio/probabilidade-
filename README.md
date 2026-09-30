@@ -6,13 +6,26 @@ Projeto experimental de pesquisa estatística para Lotomania, com foco em valida
 
 ## Versões congeladas
 
-V7, V8, V9 e V10 são preservadas como referências históricas e não devem ser sobrescritas. Novas versões só devem ser criadas após o teste cego da versão anterior.
+V7, V8, V9 e V10 são preservadas como referências históricas e não devem ser sobrescritas. V13 é experimental e não deve ser tratada como versão congelada até passar por validação temporal robusta.
+
+## V14 — backtest robusto
+
+A branch `lotomania-v14-robust-backtest` adiciona:
+
+- métricas de cauda 15+, 16+, 17+, 18+, 19+ e 20+;
+- comparação de cauda por tupla, priorizando os eventos mais raros;
+- busca com objetivo tail-first;
+- busca temporal separada entre treino e validação;
+- teste automatizado das novas métricas;
+- GitHub Actions para executar a suíte de testes em push e pull request.
+
+A busca não deve usar o holdout para selecionar pesos. Uma versão só deve ser promovida depois de apresentar estabilidade em blocos temporais independentes.
 
 ## Dados
 
 Formato esperado: `concurso;data;dezenas`.
 
-Coloque seu `lotomania.csv` em `data/lotomania.csv` antes de executar o pipeline. O histórico usado no desenvolvimento vai até o concurso 2978.
+Coloque seu `lotomania.csv` em `data/lotomania.csv` antes de executar o pipeline.
 
 ## Instalação
 
@@ -39,7 +52,7 @@ Para cada concurso-alvo `t`, somente concursos anteriores a `t` podem gerar atri
 ## Estrutura
 
 - `data/` histórico
-- `versions/` V7–V10 congeladas
+- `versions/` versões congeladas/experimentais
 - `src/` pipeline
 - `models/` configurações
 - `backtests/` resultados gerados
