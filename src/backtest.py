@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
-from .features import score_numbers, select_game
+from .features import score_numbers, select_game, build_features, zscore
 
 @dataclass
 class Metrics:
@@ -23,13 +23,8 @@ class Metrics:
         return (self.ge20_rate, self.ge19_rate, self.ge18_rate,
                 self.ge17_rate, self.ge16_rate, self.ge15_rate)
 
-def evaluate_weight_model(history, weights, start=300, end=None, stride=1):
-    end = len(history) if end is None else min(end, len(history))
-    hits=[]
-    for t in range(start, end, stride):
-        game=select_game(score_numbers(history[:t], weights))
-        hits.append(len(set(game) & set(np.flatnonzero(history[t]))))
-    if not hits:
+def _metrics_from_hits(hits):
+    if len(hits)==0:
         raise ValueError("Nenhum ponto de validação")
     a=np.asarray(hits,dtype=float)
     return Metrics(
@@ -40,6 +35,49 @@ def evaluate_weight_model(history, weights, start=300, end=None, stride=1):
         ge17_rate=float(np.mean(a>=17)), ge18_rate=float(np.mean(a>=18)),
         ge19_rate=float(np.mean(a>=19)), ge20_rate=float(np.mean(a>=20)),
     )
+
+def precompute_feature_matrix(history, feature_names, start=300, end=None):
+    """Precompute z-scored feature vectors once for a temporal block.
+
+    Shape: (targets, features, 100). This is intentionally independent of
+    candidate model weights so thousands of candidates can reuse the same
+    historical calculations without leakage.
+    """
+    end=len(history) if end is None else min(end,len(history))
+    if start < 1 or start >= end:
+        raise ValueError("Bloco temporal inválido")
+    matrix=np.empty((end-start,len(feature_names),100),dtype=np.float32)
+    for row,t in enumerate(range(start,end)):
+        ff=build_features(history[:t])
+        for j,name in enumerate(feature_names):
+            if name not in ff:
+                raise ValueError(f"Feature desconhecida: {name}")
+            matrix[row,j]=zscore(ff[name].to_numpy())
+    return matrix
+
+def evaluate_weight_model(history, weights, start=300, end=None, stride=1):
+    end = len(history) if end is None else min(end, len(history))
+    hits=[]
+    for t in range(start, end, stride):
+        game=select_game(score_numbers(history[:t], weights))
+        hits.append(len(set(game) & set(np.flatnonzero(history[t]))))
+    return _metrics_from_hits(hits)
+
+def evaluate_weight_models_cached(history, weight_models, feature_names, start=300, end=None):
+    """Evaluate many fixed weight dictionaries using one feature cache."""
+    names=list(feature_names)
+    cache=precompute_feature_matrix(history,names,start=start,end=end)
+    targets=history[start:(len(history) if end is None else min(end,len(history)))]
+    results=[]
+    for weights in weight_models:
+        w=np.asarray([float(weights.get(n,0.0)) for n in names],dtype=np.float32)
+        hits=[]
+        for i in range(cache.shape[0]):
+            scores=np.dot(w,cache[i])
+            game=select_game(scores)
+            hits.append(np.count_nonzero(targets[i,game]))
+        results.append(_metrics_from_hits(hits))
+    return results
 
 def compare_metrics(candidate, baseline):
     return {
