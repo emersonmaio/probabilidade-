@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: ["main", "lotomania-v14-robust-backtest"]
+    branches: ["main", "lotomania-v14-robust-backtest", "lotomania-v15-research-lab"]
   pull_request:
 
 jobs:
@@ -14,4 +14,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: pytest -q
+      - run: PYTHONPATH=. pytest -q

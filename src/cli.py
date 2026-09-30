@@ -6,21 +6,69 @@ from .data import load_results, incidence
 from .backtest import evaluate_weight_model
 from .features import score_numbers, select_game
 from .search import search, save_result
+from .baseline import theoretical_metrics, simulate_random_games, summarize_hits
+from .research import feature_ablation, stability_windows, compare_to_baseline, model_report
+
 ROOT=Path(__file__).resolve().parents[1]
 
-def main():
-    p=argparse.ArgumentParser(); p.add_argument("--data",default=str(ROOT/"data"/"lotomania.csv")); sub=p.add_subparsers(dest="cmd",required=True)
-    v=sub.add_parser("validate"); v.add_argument("--start",type=int,default=300)
-    s=sub.add_parser("search"); s.add_argument("--models",type=int,default=10000); s.add_argument("--start",type=int,default=300); s.add_argument("--output",default=str(ROOT/"backtests"/"best_search.json"))
-    pr=sub.add_parser("predict"); pr.add_argument("--games",type=int,default=5)
-    a=p.parse_args(); df=load_results(a.data); h=incidence(df)
-    weights={"freq_10":0.12,"freq_21":0.16,"freq_50":0.27,"freq_100":0.07,"freq_300":0.04,"recency":0.08,"gap":0.18,"transition":0.05,"co21":0.03}
-    if a.cmd=="validate": print(json.dumps(evaluate_weight_model(h,weights,a.start).__dict__,indent=2,ensure_ascii=False))
-    elif a.cmd=="search":
-        r=search(h,a.models,a.start); Path(a.output).parent.mkdir(parents=True,exist_ok=True); save_result(r,a.output); print(json.dumps(r,indent=2,ensure_ascii=False))
-    else:
-        score=score_numbers(h,weights)
-        for i in range(a.games):
-            game=select_game(score+np.random.default_rng(5000+i).normal(0,0.03,100)); print(f"Jogo {i+1}: "+" ".join(f"{x:02d}" for x in game))
+DEFAULT_WEIGHTS={
+    "freq_10":0.12,"freq_21":0.16,"freq_50":0.27,"freq_100":0.07,
+    "freq_300":0.04,"recency":0.08,"gap":0.18,"transition":0.05,"co21":0.03
+}
 
-if __name__=="__main__": main()
+def main():
+    p=argparse.ArgumentParser()
+    p.add_argument("--data",default=str(ROOT/"data"/"lotomania.csv"))
+    sub=p.add_subparsers(dest="cmd",required=True)
+
+    v=sub.add_parser("validate")
+    v.add_argument("--start",type=int,default=300)
+
+    s=sub.add_parser("search")
+    s.add_argument("--models",type=int,default=10000)
+    s.add_argument("--start",type=int,default=300)
+    s.add_argument("--output",default=str(ROOT/"backtests"/"best_search.json"))
+
+    r=sub.add_parser("research")
+    r.add_argument("--start",type=int,default=300)
+    r.add_argument("--output",default=str(ROOT/"backtests"/"v15_report.json"))
+    r.add_argument("--simulations",type=int,default=100000)
+
+    pr=sub.add_parser("predict")
+    pr.add_argument("--games",type=int,default=5)
+
+    a=p.parse_args()
+    df=load_results(a.data)
+    h=incidence(df)
+
+    if a.cmd=="validate":
+        print(json.dumps(evaluate_weight_model(h,DEFAULT_WEIGHTS,a.start).__dict__,
+                         indent=2,ensure_ascii=False))
+    elif a.cmd=="search":
+        r=search(h,a.models,a.start)
+        Path(a.output).parent.mkdir(parents=True,exist_ok=True)
+        save_result(r,a.output)
+        print(json.dumps(r,indent=2,ensure_ascii=False))
+    elif a.cmd=="research":
+        metrics=evaluate_weight_model(h,DEFAULT_WEIGHTS,a.start)
+        baseline=theoretical_metrics()
+        sim=summarize_hits(simulate_random_games(a.simulations))
+        report=model_report(h,DEFAULT_WEIGHTS,a.start)
+        report["baseline_simulation"]=sim
+        report["baseline_comparison"]=compare_to_baseline(metrics,baseline)
+        report["feature_ablation"]=feature_ablation(
+            h,{k:1.0 for k in DEFAULT_WEIGHTS},start=a.start
+        )
+        report["stability"]=stability_windows(h,DEFAULT_WEIGHTS)
+        Path(a.output).parent.mkdir(parents=True,exist_ok=True)
+        Path(a.output).write_text(json.dumps(report,indent=2,ensure_ascii=False),
+                                  encoding="utf-8")
+        print(json.dumps(report,indent=2,ensure_ascii=False))
+    else:
+        score=score_numbers(h,DEFAULT_WEIGHTS)
+        for i in range(a.games):
+            game=select_game(score+np.random.default_rng(5000+i).normal(0,0.03,100))
+            print(f"Jogo {i+1}: "+" ".join(f"{x:02d}" for x in game))
+
+if __name__=="__main__":
+    main()
